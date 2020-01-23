@@ -48,7 +48,8 @@ class Parser:
             return self.get_stats_from_page_subcategories(pq(requests.get(url).text))
 
         result = dict(map(lambda lang_code: (
-            lang_code, self.parse_category_for_lang(url, lang_code)), self.LANGUAGES))
+            lang_code, self.parse_category_for_lang(url, lang_code)
+        ), self.LANGUAGES))
 
         result[self.TOTAL_KEY] = self.parse_category_for_lang(
             url, None)
@@ -61,8 +62,6 @@ class Parser:
                 self.LANG_QUERY_PARAM_VALUES[lang_code])
         response = requests.get(url)
         html = pq(response.text)
-
-        books_on_one_page = len(html('.products-grid li'))
 
         last_page = self._get_last_page(html, url)
 
@@ -86,7 +85,10 @@ class Parser:
 
         if last_page_anchor:
             # take the hidden 'last page' anchor, if present
-            return {'url': last_page_anchor.attr('href'), 'index': int(last_page_anchor.text()) - 1}
+            return {
+                'url': last_page_anchor.attr('href'),
+                'index': int(last_page_anchor.text()) - 1
+            }
         else:
             # if the 'last page' anchor not present, check if pagination is present at all
             page_anchors = html('.pagination ul li.paginator_page a')
@@ -94,7 +96,10 @@ class Parser:
             if page_anchors:
                 # if present - take the last visible page anchor
                 last_page_anchor = pq(page_anchors[-1])
-                return {'url': last_page_anchor.attr('href'), 'index': int(last_page_anchor.text()) - 1}
+                return {
+                    'url': last_page_anchor.attr('href'),
+                    'index': int(last_page_anchor.text()) - 1
+                }
             else:
                 # otherwise, there's only 1 page for this categoty
                 return {'url': url, 'index': 0}
