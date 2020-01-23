@@ -11,4 +11,5 @@ imported_classes = map(
 
 for c in imported_classes:
     p = c()
-    p.get_book_stats()
+    print('Парсимо', c.TITLE, '...')
+    print(p.get_book_stats())
