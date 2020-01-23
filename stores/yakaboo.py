@@ -9,6 +9,7 @@ class Parser:
     }
     URL = 'https://www.yakaboo.ua/ua/knigi.html'
     TITLE = 'Yakaboo'
+    LANGUAGES = ('uk', 'ru')
 
     def get_book_stats(self) -> dict:
         response = requests.get(self.URL)
@@ -18,16 +19,13 @@ class Parser:
     def get_stats_from_page_subcategories(self, html: pq) -> dict:
         menu_items = self.get_categories_from_menu(html)
 
-        languages = ['uk', 'ru']
-
-        total_results = {'uk': 0, 'ru': 0}
+        total_results = dict(map(lambda k: (k, 0), self.LANGUAGES))
 
         for cat_url in map(lambda item: pq(item).attr('href'), menu_items):
-            section_results = {}
-            for lang in languages:
-                section_results[lang] = self.parse_category(cat_url, lang)
-                total_results[lang] += section_results[lang]
+            section_results = self.parse_category(cat_url)
             print(cat_url, section_results)
+            for lang, section_result in section_results.items():
+                total_results[lang] += section_result
         return total_results
 
     def get_categories_from_menu(self, html: pq) -> pq:
@@ -37,31 +35,36 @@ class Parser:
             '.block-categories-list'
         ).find('.block-content>ul>li:not(.item_stock)>a')
 
-    def parse_category(self, url, lang_code) -> int:
+    def parse_category(self, url) -> dict:
         if url == 'https://www.yakaboo.ua/ua/knigi/knigi-na-inostrannyh-jazykah.html':
-            return 0
+            return {'uk': 0, 'ru': 0}
 
         if url == 'https://www.yakaboo.ua/ua/knigi/izuchenie-jazykov-mira.html':
             return self.get_stats_from_page_subcategories(pq(requests.get(url).text))
 
-        url += '?book_lang={}'.format(self.LANG_QUERY_PARAM_VALUES[lang_code])
-        response = requests.get(url)
-        html = pq(response.text)
+        result = {}
 
-        books_on_one_page = len(html('.products-grid li'))
+        for lang_code in self.LANGUAGES:
+            url += '?book_lang={}'.format(
+                self.LANG_QUERY_PARAM_VALUES[lang_code])
+            response = requests.get(url)
+            html = pq(response.text)
 
-        last_page = self._get_last_page(html, url)
+            books_on_one_page = len(html('.products-grid li'))
 
-        products_on_first_page = self._count_items_on_page(html)
+            last_page = self._get_last_page(html, url)
 
-        if last_page['index'] == 0:
-            total_products_in_lang = products_on_first_page
-        else:
-            last_page_html = pq(requests.get(last_page['url']).text)
-            total_products_in_lang = self._count_items_on_page(
-                last_page_html) + last_page['index'] * products_on_first_page
+            products_on_first_page = self._count_items_on_page(html)
 
-        return total_products_in_lang
+            if last_page['index'] == 0:
+                total_products_in_lang = products_on_first_page
+            else:
+                last_page_html = pq(requests.get(last_page['url']).text)
+                total_products_in_lang = self._count_items_on_page(
+                    last_page_html) + last_page['index'] * products_on_first_page
+
+            result[lang_code] = total_products_in_lang
+        return result
 
     def _count_items_on_page(self, html) -> int:
         return len(html('#products .item'))
