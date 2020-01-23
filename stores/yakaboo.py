@@ -1,5 +1,6 @@
 import requests
 from pyquery import PyQuery as pq
+from typing import Union
 
 
 class Parser:
@@ -7,19 +8,21 @@ class Parser:
         'uk': 'Ukrainskij',
         'ru': 'Russkij'
     }
-    URL = 'https://www.yakaboo.ua/ua/knigi.html'
+    HOME_URL = 'https://www.yakaboo.ua/ua/knigi.html'
     TITLE = 'Yakaboo'
     LANGUAGES = ('uk', 'ru')
+    TOTAL_KEY = 'TOTAL'
 
     def get_book_stats(self) -> dict:
-        response = requests.get(self.URL)
+        response = requests.get(self.HOME_URL)
         html = pq(response.text)
         return self.get_stats_from_page_subcategories(html)
 
     def get_stats_from_page_subcategories(self, html: pq) -> dict:
         menu_items = self.get_categories_from_menu(html)
 
-        total_results = dict(map(lambda k: (k, 0), self.LANGUAGES))
+        total_results = dict(
+            map(lambda k: (k, 0), (*self.LANGUAGES, self.TOTAL_KEY)))
 
         for cat_url in map(lambda item: pq(item).attr('href'), menu_items):
             section_results = self.parse_category(cat_url)
@@ -37,34 +40,42 @@ class Parser:
 
     def parse_category(self, url) -> dict:
         if url == 'https://www.yakaboo.ua/ua/knigi/knigi-na-inostrannyh-jazykah.html':
-            return {'uk': 0, 'ru': 0}
+            # Ignore this url - we don't want to calulate books there; they're included into other sections
+            return {'uk': 0, 'ru': 0, self.TOTAL_KEY: 0}
 
         if url == 'https://www.yakaboo.ua/ua/knigi/izuchenie-jazykov-mira.html':
+            # It's a special case category - it only contains subcategories, so parse them
             return self.get_stats_from_page_subcategories(pq(requests.get(url).text))
 
-        result = {}
+        result = dict(map(lambda lang_code: (
+            lang_code, self.parse_category_for_lang(url, lang_code)), self.LANGUAGES))
 
-        for lang_code in self.LANGUAGES:
+        result[self.TOTAL_KEY] = self.parse_category_for_lang(
+            url, None)
+
+        return result
+
+    def parse_category_for_lang(self, url, lang_code: Union[str, None]):
+        if lang_code is not None:
             url += '?book_lang={}'.format(
                 self.LANG_QUERY_PARAM_VALUES[lang_code])
-            response = requests.get(url)
-            html = pq(response.text)
+        response = requests.get(url)
+        html = pq(response.text)
 
-            books_on_one_page = len(html('.products-grid li'))
+        books_on_one_page = len(html('.products-grid li'))
 
-            last_page = self._get_last_page(html, url)
+        last_page = self._get_last_page(html, url)
 
-            products_on_first_page = self._count_items_on_page(html)
+        products_on_first_page = self._count_items_on_page(html)
 
-            if last_page['index'] == 0:
-                total_products_in_lang = products_on_first_page
-            else:
-                last_page_html = pq(requests.get(last_page['url']).text)
-                total_products_in_lang = self._count_items_on_page(
-                    last_page_html) + last_page['index'] * products_on_first_page
+        if last_page['index'] == 0:
+            total_products_in_lang = products_on_first_page
+        else:
+            last_page_html = pq(requests.get(last_page['url']).text)
+            total_products_in_lang = self._count_items_on_page(
+                last_page_html) + last_page['index'] * products_on_first_page
 
-            result[lang_code] = total_products_in_lang
-        return result
+        return total_products_in_lang
 
     def _count_items_on_page(self, html) -> int:
         return len(html('#products .item'))
