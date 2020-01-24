@@ -1,6 +1,7 @@
 import requests
 from pyquery import PyQuery as pq
-from typing import Union
+from typing import Union, cast
+from parse_results import ParseResults
 
 
 class Parser:
@@ -11,24 +12,22 @@ class Parser:
     HOME_URL = 'https://www.yakaboo.ua/ua/knigi.html'
     TITLE = 'Yakaboo'
     LANGUAGES = ('uk', 'ru')
-    TOTAL_KEY = 'TOTAL'
 
-    def get_book_stats(self) -> dict:
+    def get_book_stats(self) -> ParseResults:
         response = requests.get(self.HOME_URL)
         html = pq(response.text)
         return self.get_stats_from_page_subcategories(html)
 
-    def get_stats_from_page_subcategories(self, html: pq) -> dict:
+    def get_stats_from_page_subcategories(self, html: pq) -> ParseResults:
         menu_items = self.get_categories_from_menu(html)
 
-        total_results = dict(
-            map(lambda k: (k, 0), (*self.LANGUAGES, self.TOTAL_KEY)))
+        total_results = self._empty_results()
 
         for cat_url in map(lambda item: pq(item).attr('href'), menu_items):
             section_results = self.parse_category(cat_url)
             print(cat_url, section_results)
             for lang, section_result in section_results.items():
-                total_results[lang] += section_result
+                total_results[lang] += section_result  # type: ignore
         return total_results
 
     def get_categories_from_menu(self, html: pq) -> pq:
@@ -38,20 +37,23 @@ class Parser:
             '.block-categories-list'
         ).find('.block-content>ul>li:not(.item_stock)>a')
 
-    def parse_category(self, url) -> dict:
+    def parse_category(self, url) -> ParseResults:
         if url == 'https://www.yakaboo.ua/ua/knigi/knigi-na-inostrannyh-jazykah.html':
             # Ignore this url - we don't want to calulate books there; they're included into other sections
-            return {'uk': 0, 'ru': 0, self.TOTAL_KEY: 0}
+            return self._empty_results()
 
         if url == 'https://www.yakaboo.ua/ua/knigi/izuchenie-jazykov-mira.html':
             # It's a special case category - it only contains subcategories, so parse them
             return self.get_stats_from_page_subcategories(pq(requests.get(url).text))
 
-        result = dict(map(lambda lang_code: (
-            lang_code, self.parse_category_for_lang(url, lang_code)
-        ), self.LANGUAGES))
+        result = cast(
+            ParseResults,
+            dict(map(lambda lang_code: (
+                lang_code, self.parse_category_for_lang(url, lang_code)
+            ), self.LANGUAGES))
+        )
 
-        result[self.TOTAL_KEY] = self.parse_category_for_lang(
+        result['TOTAL'] = self.parse_category_for_lang(
             url, None)
 
         return result
@@ -103,3 +105,7 @@ class Parser:
             else:
                 # otherwise, there's only 1 page for this categoty
                 return {'url': url, 'index': 0}
+
+    def _empty_results(self) -> ParseResults:
+        return cast(ParseResults, dict(
+            map(lambda k: (k, 0), (*self.LANGUAGES, 'TOTAL'))))
