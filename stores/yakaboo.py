@@ -37,7 +37,7 @@ class Parser:
             '.block-categories-list'
         ).find('.block-content>ul>li:not(.item_stock)>a')
 
-    def parse_category(self, url) -> ParseResults:
+    def parse_category(self, url: str) -> ParseResults:
         if url == 'https://www.yakaboo.ua/ua/knigi/knigi-na-inostrannyh-jazykah.html':
             # Ignore this url - we don't want to calulate books there; they're included into other sections
             return self._empty_results()
@@ -58,10 +58,24 @@ class Parser:
 
         return result
 
-    def parse_category_for_lang(self, url, lang_code: Union[str, None]):
+    def parse_category_for_lang(self, url: str, lang_code: Union[str, None]) -> int:
+        """Returns the number of books present for the given category for the given language
+
+        Returns:
+            [int] -- The number of books present for the given category for the given language
+        """
+
+        # TODO: This method effectively only parses the first and the last pages of the category.
+        # Due to this, sometimes it returns wrong data, since there are situations when first page contains 47 books,
+        # but all the subsequent pages contain 48.
+        # In order to improve accuracy we should parse all the pages. This, however, would increase the parse time by many times.
+
         if lang_code is not None:
-            url += '?book_lang={}'.format(
+            url += '?book_lang={}&for_filter_is_in_stock=Tovary_v_nalichii'.format(
                 self.LANG_QUERY_PARAM_VALUES[lang_code])
+        else:
+            url += '?for_filter_is_in_stock=Tovary_v_nalichii'
+
         response = requests.get(url)
         html = pq(response.text)
 
