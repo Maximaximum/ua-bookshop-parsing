@@ -20,8 +20,8 @@ overall_stats: OverallParseResults = []
 
 for c in imported_classes:
     p: AbstractParser = cast(AbstractParser, c())
-    print('Парсимо', c.TITLE, '...')
-    stats: SiteParseResults = {'title': c.TITLE, 'url': c.HOME_URL, **p.get_book_stats()}  # type: ignore
+    print('Парсимо', p.TITLE, '...')
+    stats: SiteParseResults = {'title': p.TITLE, 'home_url': p.HOME_URL, **p.get_book_stats()}  # type: ignore
     overall_stats.append(stats)
 
 # Output to csv

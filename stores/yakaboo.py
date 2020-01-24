@@ -2,15 +2,22 @@ import requests
 from pyquery import PyQuery as pq
 from typing import Union, cast
 from parse_results import ParseResults
+from abstract_parser import AbstractParser
 
 
-class Parser:
+class Parser(AbstractParser):
+    @property
+    def HOME_URL(self):
+        return 'https://www.yakaboo.ua/ua/knigi.html'
+
+    @property
+    def TITLE(self):
+        return 'Yakaboo'
+
     LANG_QUERY_PARAM_VALUES = {
         'uk': 'Ukrainskij',
         'ru': 'Russkij'
     }
-    HOME_URL = 'https://www.yakaboo.ua/ua/knigi.html'
-    TITLE = 'Yakaboo'
     LANGUAGES = ('uk', 'ru')
 
     def get_book_stats(self) -> ParseResults:

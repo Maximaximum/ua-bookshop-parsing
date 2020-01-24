@@ -1,9 +1,16 @@
 from parse_results import ParseResults
 
+from abstract_parser import AbstractParser
 
-class Parser:
-    HOME_URL = 'https://mock.ua'
-    TITLE = 'Mock'
+
+class Parser(AbstractParser):
+    @property
+    def HOME_URL(self):
+        return 'https://mock.ua'
+
+    @property
+    def TITLE(self):
+        return 'Mock'
 
     def get_book_stats(self) -> ParseResults:
         return {
