@@ -28,7 +28,7 @@ class Parser(AbstractParser):
     def get_stats_from_page_subcategories(self, html: pq) -> ParseResults:
         menu_items = self.get_categories_from_menu(html)
 
-        total_results = self._empty_results()
+        total_results = self.empty_results()
 
         for cat_url in map(lambda item: pq(item).attr('href'), menu_items):
             section_results = self.parse_category(cat_url)
@@ -47,7 +47,7 @@ class Parser(AbstractParser):
     def parse_category(self, url: str) -> ParseResults:
         if url == 'https://www.yakaboo.ua/ua/knigi/knigi-na-inostrannyh-jazykah.html':
             # Ignore this url - we don't want to calulate books there; they're included into other sections
-            return self._empty_results()
+            return self.empty_results()
 
         if url == 'https://www.yakaboo.ua/ua/knigi/izuchenie-jazykov-mira.html':
             # It's a special case category - it only contains subcategories, so parse them
@@ -126,7 +126,3 @@ class Parser(AbstractParser):
             else:
                 # otherwise, there's only 1 page for this categoty
                 return {'url': url, 'index': 0}
-
-    def _empty_results(self) -> ParseResults:
-        return cast(ParseResults, dict(
-            map(lambda k: (k, 0), (*self.LANGUAGES, 'TOTAL'))))
